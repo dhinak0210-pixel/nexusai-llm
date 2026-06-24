@@ -22,12 +22,13 @@ from typing import Optional
 
 import torch
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
+import requests as http_requests
 
 # Auto-inject Hugging Face token from local cache if not set in environment
 if not os.environ.get("HF_TOKEN"):
@@ -379,6 +380,64 @@ async def root():
         "gpu_available": torch.cuda.is_available(),
         "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
     }
+
+
+@app.get("/v1/config")
+async def get_config():
+    """Return runtime configuration for the frontend."""
+    hf_token = os.environ.get("HF_TOKEN", "")
+    return {
+        "hf_token_available": bool(hf_token),
+        "proxy_available": True,
+        "device": DEVICE,
+    }
+
+
+@app.post("/v1/hf/chat/completions")
+async def proxy_hf_chat(request: Request):
+    """Proxy cloud model requests to HuggingFace using server-side HF_TOKEN.
+    This keeps the API key securely on the server — never exposed to the browser.
+    """
+    hf_token = os.environ.get("HF_TOKEN", "")
+    if not hf_token:
+        raise HTTPException(
+            status_code=401,
+            detail="HF_TOKEN not configured on this server. Set it in Space secrets."
+        )
+
+    body = await request.json()
+    is_stream = body.get("stream", True)
+
+    hf_url = "https://router.huggingface.co/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {hf_token}",
+        "Content-Type": "application/json",
+    }
+
+    if is_stream:
+        def generate_proxy():
+            try:
+                with http_requests.post(
+                    hf_url, json=body, headers=headers, stream=True, timeout=120
+                ) as resp:
+                    for chunk in resp.iter_content(chunk_size=None):
+                        if chunk:
+                            yield chunk
+            except Exception as e:
+                error_msg = f'data: {{"error": "{str(e)}"}}'  
+                yield error_msg.encode()
+
+        return StreamingResponse(
+            generate_proxy(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            }
+        )
+    else:
+        resp = http_requests.post(hf_url, json=body, headers=headers, timeout=120)
+        return resp.json()
 
 
 @app.get("/v1/models")

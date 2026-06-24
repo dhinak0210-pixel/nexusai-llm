@@ -9,6 +9,13 @@
 const HF_API_URL = 'https://router.huggingface.co/v1/chat/completions';
 const DEFAULT_HF_MODEL = 'deepseek-ai/DeepSeek-V3';
 
+// Detect if running on deployed HuggingFace Space vs local dev
+// On HF Space: hostname is *.hf.space — proxy through backend so key stays server-side
+// On localhost: call HF directly using the env API key
+const isDeployedSpace = typeof window !== 'undefined' &&
+  !window.location.hostname.includes('localhost') &&
+  !window.location.hostname.includes('127.0.0.1');
+
 const DEFAULT_SYSTEM_PROMPT = `You are NexusAI, a helpful, intelligent, and friendly AI assistant. You provide clear, accurate, and well-structured responses. Use markdown formatting when appropriate for code blocks, lists, and emphasis. Be concise but thorough.`;
 
 const CLAUDE_SYSTEM_PROMPT = `The assistant is Claude, created by Anthropic.
@@ -275,23 +282,29 @@ The user has provided their clarification details. Do NOT ask any more clarifica
  */
 async function streamFromHuggingFace({ messages, apiKey, systemPersona, memories, hfModel, signal, onToken, onDone, onError }) {
   const systemPrompt = getSystemPrompt(systemPersona, memories, messages, false);
-  
   const modelToUse = hfModel || DEFAULT_HF_MODEL;
 
-  const response = await fetch(HF_API_URL, {
+  const requestBody = {
+    model: modelToUse,
+    messages: [{ role: 'system', content: systemPrompt }, ...messages],
+    max_tokens: 2048,
+    stream: true,
+    temperature: 0.7,
+    top_p: 0.95,
+  };
+
+  // On deployed Space: route through the server-side proxy (key stays server-side)
+  // On localhost: call HuggingFace directly using the env/stored API key
+  const url = isDeployedSpace ? '/v1/hf/chat/completions' : HF_API_URL;
+  const headers = { 'Content-Type': 'application/json' };
+  if (!isDeployedSpace && apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
+  const response = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: modelToUse,
-      messages: [{ role: 'system', content: systemPrompt }, ...messages],
-      max_tokens: 2048,
-      stream: true,
-      temperature: 0.7,
-      top_p: 0.95,
-    }),
+    headers,
+    body: JSON.stringify(requestBody),
     signal,
   });
 
@@ -307,7 +320,10 @@ async function streamFromHuggingFace({ messages, apiKey, systemPersona, memories
  * Stream chat from a local/Colab OpenAI-compatible server
  */
 async function streamFromLocalServer({ messages, serverUrl, systemPersona, memories, signal, onToken, onDone, onError }) {
-  const url = serverUrl.replace(/\/+$/, '') + '/v1/chat/completions';
+  // On deployed Space: the local model runs in the same Docker container — use relative URL
+  // On localhost: use the configured serverUrl (http://localhost:8000)
+  const baseUrl = isDeployedSpace ? '' : serverUrl.replace(/\/+$/, '');
+  const url = baseUrl + '/v1/chat/completions';
   const systemPrompt = getSystemPrompt(systemPersona, memories, messages, true);
 
   const response = await fetch(url, {
