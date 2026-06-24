@@ -62,6 +62,38 @@
   }
 }
 
+/* ===== Mobile & Touch Optimisations ===== */
+
+/* Remove blue tap highlight on Android Chrome */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth touch scrolling on iOS */
+.overflow-y-auto,
+.overflow-auto,
+[class*="overflow-y-"] {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Safe area padding for phones with notches/home bars (iPhone X+, Android) */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Prevent font size bump on iOS landscape orientation */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Full-height fix for mobile browsers (address bar shrink) */
+#root {
+  height: 100dvh;
+  height: 100vh;
+}
+
+
 /* Luxury ambient background lights */
 body::before {
   content: '';

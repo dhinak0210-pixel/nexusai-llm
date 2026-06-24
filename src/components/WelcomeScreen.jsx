@@ -21,23 +21,23 @@ export default function WelcomeScreen({ onSend, disabled, backendMode, hfModel }
     : 'Provide your HuggingFace API token in settings to initialize the assistant.';
 
   return (
-    <div className="flex-1 flex items-center justify-center px-6 py-12 relative overflow-hidden select-none">
+    <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-6 sm:py-12 relative overflow-hidden select-none">
       <div className="max-w-5xl w-full animate-fade-in-up relative z-10">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8 sm:mb-12">
           {/* Pulsing luxury logo crown */}
-          <div className="relative inline-block mb-6">
+          <div className="relative inline-block mb-4 sm:mb-6">
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-primary-600 to-accent-500 blur-xl opacity-30 animate-pulse"></div>
-            <div className="relative inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 shadow-2xl shadow-primary-500/25 animate-float">
-              <Sparkles className="w-8 h-8 text-white" />
+            <div className="relative inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 shadow-2xl shadow-primary-500/25 animate-float">
+              <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
             </div>
           </div>
-          <h2 className="text-4xl font-extrabold tracking-tight text-surface-900 dark:text-white mb-3 bg-gradient-to-r from-primary-500 via-primary-400 to-accent-400 bg-clip-text text-transparent">
+          <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-surface-900 dark:text-white mb-3 bg-gradient-to-r from-primary-500 via-primary-400 to-accent-400 bg-clip-text text-transparent">
             How can I help you today?
           </h2>
-          <p className="text-surface-500 dark:text-surface-400 text-sm font-medium tracking-wide">{subtitle}</p>
+          <p className="text-surface-500 dark:text-surface-400 text-xs sm:text-sm font-medium tracking-wide">{subtitle}</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {suggestions.map((item, i) => (
             <button
               key={i}

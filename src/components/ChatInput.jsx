@@ -162,8 +162,8 @@ export default function ChatInput({ onSend, isStreaming, onStop, disabled, backe
     : 'NexusAI uses DeepSeek V3 via HuggingFace. Responses may be inaccurate.';
 
   return (
-    <div className="border-t border-surface-200/20 dark:border-surface-800/20 bg-white/30 dark:bg-surface-950/30 glass">
-      <div className="max-w-5xl mx-auto px-4 py-4 sm:py-5">
+    <div className="border-t border-surface-200/20 dark:border-surface-800/20 bg-white/30 dark:bg-surface-950/30 glass safe-bottom">
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
         <form onSubmit={handleSubmit} className="relative space-y-2">
           {/* File Attachments Preview Row */}
           {attachments.length > 0 && (
