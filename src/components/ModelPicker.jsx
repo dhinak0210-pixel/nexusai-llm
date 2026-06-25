@@ -3,7 +3,8 @@ import { Cpu, Download, Check, Loader2, Star, HardDrive, AlertCircle } from 'luc
 
 const FALLBACK_MODELS = [
   { id: './fine_tuned_lora', name: 'Custom Fine-Tuned Model', size: 'Custom', quality: 5, vram: 'Depends', description: 'Your custom local instruction-aligned model (saved in ./fine_tuned_lora)', chat_capable: true, loaded: false },
-  { id: 'google/gemma-2-2b-it', name: 'Gemma 2 2B', size: '2.6B', quality: 4, vram: '~5 GB', description: "Google's lightweight model — highly efficient and capable", chat_capable: true, loaded: false },
+  { id: 'HuggingFaceTB/SmolLM2-1.7B-Instruct', name: 'SmolLM2 1.7B', size: '1.7B', quality: 4, vram: '~4 GB', description: 'Fast, open-access HuggingFace model — great for local inference.', chat_capable: true, loaded: false },
+  { id: 'microsoft/Phi-3-mini-4k-instruct', name: 'Phi-3 Mini', size: '3.8B', quality: 4, vram: '~7 GB', description: "Microsoft's compact powerhouse — strong reasoning in a small footprint.", chat_capable: true, loaded: false },
 ];
 
 function QualityStars({ count }) {
@@ -46,6 +47,11 @@ export default function ModelPicker({ serverUrl }) {
 
   const handleLoad = async (modelId) => {
     if (loading) return;
+    // If modelId is a local path (starts with './'), mark as loaded locally without server call
+    if (modelId.startsWith('./')) {
+      setModels(prev => prev.map(m => ({ ...m, loaded: m.id === modelId })));
+      return;
+    }
     setLoading(modelId);
     setError(null);
     try {
