@@ -16,7 +16,14 @@ function QualityStars({ count }) {
   );
 }
 
+// Detect if running on deployed Space vs localhost
+const isDeployedSpace = typeof window !== 'undefined' &&
+  !window.location.hostname.includes('localhost') &&
+  !window.location.hostname.includes('127.0.0.1');
+
 export default function ModelPicker({ serverUrl }) {
+  // On deployed Space: use relative URL (same container). On localhost: use configured serverUrl.
+  const baseUrl = isDeployedSpace ? '' : (serverUrl || 'http://localhost:8000').replace(/\/+$/, '');
   const [models, setModels] = useState(FALLBACK_MODELS);
   const [loading, setLoading] = useState(null); // model id being loaded
   const [error, setError] = useState(null);
@@ -25,7 +32,7 @@ export default function ModelPicker({ serverUrl }) {
   // Fetch models from server
   useEffect(() => {
     if (!serverUrl) return;
-    const url = serverUrl.replace(/\/+$/, '') + '/v1/models';
+    const url = baseUrl + '/v1/models';
     fetch(url, { signal: AbortSignal.timeout(5000) })
       .then(r => r.json())
       .then(data => {
@@ -42,7 +49,7 @@ export default function ModelPicker({ serverUrl }) {
     setLoading(modelId);
     setError(null);
     try {
-      const url = serverUrl.replace(/\/+$/, '') + '/v1/models/load';
+      const url = baseUrl + '/v1/models/load';
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
