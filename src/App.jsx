@@ -40,6 +40,7 @@ export default function App() {
     deleteMemory,
     clearMemories,
     activeModelName,
+    proxyAvailable,
   } = useChat();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -54,10 +55,10 @@ export default function App() {
   const [dismissedClarifyId, setDismissedClarifyId] = useState(null);
 
   const hasMessages = activeConversation?.messages?.length > 0;
-  // Disabled if: HF mode with no key, OR local mode with no URL
+  // Disabled if: HF mode with no key AND no server proxy, OR local mode with no URL
   const isDisabled =
-    (backendMode === 'huggingface' && !apiKey) ||
-    (backendMode === 'local' && !serverUrl);
+    (backendMode === 'huggingface' && !apiKey && !proxyAvailable) ||
+    (backendMode === 'local' && !serverUrl && !proxyAvailable);
 
   const artifactsList = extractArtifacts(activeConversation?.messages);
 

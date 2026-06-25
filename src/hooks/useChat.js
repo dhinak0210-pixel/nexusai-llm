@@ -39,6 +39,25 @@ export function useChat() {
     }
   });
 
+  // Whether the server-side HF proxy is available (deployed Space with HF_TOKEN)
+  const [proxyAvailable, setProxyAvailable] = useState(false);
+
+  // On mount: check if the backend has a server-side HF token (deployed Space)
+  useEffect(() => {
+    const isDeployed = !window.location.hostname.includes('localhost') &&
+      !window.location.hostname.includes('127.0.0.1');
+    if (isDeployed) {
+      fetch('/v1/config', { signal: AbortSignal.timeout(5000) })
+        .then(res => res.json())
+        .then(data => {
+          if (data.hf_token_available) {
+            setProxyAvailable(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
   // Backend mode: 'huggingface' or 'local'
   const [backendMode, setBackendMode] = useState(() => {
     try {
@@ -509,5 +528,6 @@ export function useChat() {
     deleteMemory,
     clearMemories,
     activeModelName,
+    proxyAvailable,
   };
 }
