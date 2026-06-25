@@ -45,13 +45,13 @@ if not os.environ.get("HF_TOKEN"):
 # Available Free Models Registry
 # ============================================
 MODEL_REGISTRY = {
-    "TinyLlama/TinyLlama-1.1B-Chat-v1.0": {
-        "id": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-        "name": "TinyLlama 1.1B",
-        "size": "1.1B",
-        "quality": 3,
-        "vram": "~2 GB",
-        "description": "Fast, lightweight chat model — runs on CPU/GPU, always available",
+    "./fine_tuned_lora": {
+        "id": "./fine_tuned_lora",
+        "name": "Custom Fine-Tuned Model",
+        "size": "Custom",
+        "quality": 5,
+        "vram": "Depends",
+        "description": "Your custom local instruction-aligned model (saved in ./fine_tuned_lora)",
         "chat_capable": True,
     },
     "google/gemma-2-2b-it": {
@@ -65,7 +65,7 @@ MODEL_REGISTRY = {
     },
 }
 
-DEFAULT_MODEL = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+DEFAULT_MODEL = "./fine_tuned_lora"
 
 # ============================================
 # App Setup

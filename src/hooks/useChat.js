@@ -82,10 +82,7 @@ export function useChat() {
   // Fetch active local model name from the server
   const syncLocalModelName = useCallback(async () => {
     try {
-      const isDeployed = !window.location.hostname.includes('localhost') &&
-        !window.location.hostname.includes('127.0.0.1');
-      const base = isDeployed ? '' : serverUrl.replace(/\/+$/, '');
-      const url = base + '/v1/models';
+      const url = serverUrl.replace(/\/+$/, '') + '/v1/models';
       const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
       if (res.ok) {
         const data = await res.json();

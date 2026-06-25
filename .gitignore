@@ -38,13 +38,22 @@ __pycache__
 *.egg-info
 .eggs
 
-# Model weights (too large for git)
-backend/fine_tuned_lora/
+# Heavy base model weights (NOT LoRA adapters — those are small and needed for deployment)
 backend/fine_tuned_lora_old/
+
+# Large standalone model weight files (base model downloads are cached via HuggingFace)
 *.bin
-*.safetensors
 *.pt
 *.pth
+
+# Allow LoRA adapter files (small, needed for Space deployment)
+# backend/fine_tuned_lora/adapter_model.safetensors is ~49MB — acceptable
+!backend/fine_tuned_lora/adapter_model.safetensors
+!backend/fine_tuned_lora/adapter_config.json
+!backend/fine_tuned_lora/tokenizer.json
+!backend/fine_tuned_lora/tokenizer_config.json
+!backend/fine_tuned_lora/special_tokens_map.json
+!backend/fine_tuned_lora/chat_template.jinja
 
 # Misc
 backend/server.log
