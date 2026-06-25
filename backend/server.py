@@ -8,7 +8,7 @@ Usage:
   pip install -r requirements.txt
   python server.py
   python server.py --model "microsoft/phi-2"
-  python server.py --model "google/gemma-2-2b-it"
+  python server.py --model "HuggingFaceTB/SmolLM2-1.7B-Instruct"
 """
 import os
 import argparse
@@ -54,15 +54,25 @@ MODEL_REGISTRY = {
         "description": "Your custom local instruction-aligned model (saved in ./fine_tuned_lora)",
         "chat_capable": True,
     },
-    "google/gemma-2-2b-it": {
-        "id": "google/gemma-2-2b-it",
-        "name": "Gemma 2 2B",
-        "size": "2.6B",
+    "HuggingFaceTB/SmolLM2-1.7B-Instruct": {
+        "id": "HuggingFaceTB/SmolLM2-1.7B-Instruct",
+        "name": "SmolLM2 1.7B",
+        "size": "1.7B",
         "quality": 4,
-        "vram": "~5 GB",
-        "description": "Google's lightweight model — highly efficient and capable",
+        "vram": "~4 GB",
+        "description": "Fast, open-access HuggingFace model — great for local inference.",
         "chat_capable": True,
     },
+    "microsoft/Phi-3-mini-4k-instruct": {
+        "id": "microsoft/Phi-3-mini-4k-instruct",
+        "name": "Phi-3 Mini",
+        "size": "3.8B",
+        "quality": 4,
+        "vram": "~7 GB",
+        "description": "Microsoft's compact powerhouse — strong reasoning in a small footprint.",
+        "chat_capable": True,
+    },
+
 }
 
 DEFAULT_MODEL = "./fine_tuned_lora"
