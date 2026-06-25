@@ -575,13 +575,27 @@ def main():
     )
     parser.add_argument("--port", type=int, default=8000, help="Server port")
     parser.add_argument("--host", default="0.0.0.0", help="Server host")
+    parser.add_argument("--skip-model", action="store_true",
+                        help="Skip loading the local model (cloud-only mode)")
     args = parser.parse_args()
-
-    # Load initial model
-    load_model(args.model)
 
     print(f"\n🚀 Server starting on http://{args.host}:{args.port}")
     print(f"📡 API docs: http://{args.host}:{args.port}/docs\n")
+
+    if not args.skip_model:
+        # Load model in background thread so server starts instantly
+        def _bg_load():
+            try:
+                load_model(args.model)
+            except Exception as e:
+                print(f"⚠️ Background model load failed: {e}")
+                print("☁️ Cloud models still work via /v1/hf/chat/completions proxy.")
+
+        bg_thread = Thread(target=_bg_load, daemon=True)
+        bg_thread.start()
+        print("⏳ Local model loading in background — cloud models available immediately!")
+    else:
+        print("☁️ Cloud-only mode — no local model loaded")
 
     uvicorn.run(app, host=args.host, port=args.port)
 

@@ -11,27 +11,35 @@ app_port: 7860
 
 # NexusAI — Intelligent Chat Assistant
 
-A premium, ultra-luxury AI chat platform with dual-backend support:
+A premium AI chat platform that works on **any device** — phone, tablet, laptop, desktop.
 
-- **☁️ Cloud Models** — Powered by HuggingFace Inference API (DeepSeek V3, Qwen 2.5 Coder, Llama 3.3 70B, and more)
-- **🖥️ Local Models** — Self-hosted TinyLlama 1.1B with custom LoRA fine-tuning support
+## ☁️ Cloud Models (work instantly)
+Powered by HuggingFace Inference API:
+- DeepSeek V3
+- Qwen 2.5 Coder 32B
+- Llama 3.3 70B
+- DeepSeek R1
+
+## 🖥️ Local Models (loads in background)
+- TinyLlama 1.1B with custom LoRA fine-tuning support
 
 ## Features
 
 - 🎨 Glassmorphism dark/light UI
-- 🔄 Dynamic model switching with live header updates
+- 📱 Fully responsive — works on phone, tablet, desktop
+- 🔄 Dynamic model switching
 - 🧠 Persistent Memory Vault
 - 📄 PDF, PPT, Code artifact generation
-- 🔐 Secure API key management via environment variables
+- 🔐 Server-side API key (never exposed to browser)
 - 📡 Streaming responses
 
-## Environment Variables
+## Setup (HuggingFace Space)
 
-Set the following secret in your Hugging Face Space settings:
+Set the following secret in **Settings → Secrets**:
 
-| Variable | Description |
-|----------|-------------|
-| `VITE_HF_API_KEY` | Your HuggingFace API token (for Cloud Models) |
+| Secret | Description |
+|--------|-------------|
+| `HF_TOKEN` | Your HuggingFace API token (for cloud models) |
 
 ## Local Development
 
@@ -39,10 +47,6 @@ Set the following secret in your Hugging Face Space settings:
 # Install frontend deps
 npm install
 
-# Start frontend dev server
-npm run dev
-
-# Start backend (in a separate terminal)
-cd backend
-python server.py
+# Start both servers
+./start.sh
 ```

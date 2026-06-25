@@ -18,10 +18,6 @@ COPY index.html vite.config.js eslint.config.js ./
 COPY src ./src
 COPY public ./public
 
-# Inject HF API key at build time (Space secret)
-ARG VITE_HF_API_KEY
-ENV VITE_HF_API_KEY=$VITE_HF_API_KEY
-
 RUN npm run build
 
 # Stage 2: Python backend + serve frontend
@@ -54,6 +50,8 @@ ENV HOST=0.0.0.0
 # Expose the port
 EXPOSE 7860
 
-# Start the FastAPI server (serves both API + static frontend)
-# Uses TinyLlama by default — downloads on first start (~600MB)
+# Start the FastAPI server
+# Model loads in background thread — server starts instantly
+# Cloud models via HF proxy work immediately
+# Local TinyLlama available once download completes (~2-5 min)
 CMD ["python", "backend/server.py", "--model", "TinyLlama/TinyLlama-1.1B-Chat-v1.0", "--port", "7860", "--host", "0.0.0.0"]
