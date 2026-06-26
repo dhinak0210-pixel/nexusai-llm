@@ -461,6 +461,17 @@ async def list_models():
         )
     return {"object": "list", "data": models}
 
+@app.get("/v1/health")
+async def health_check():
+    """Simple health check endpoint for diagnostics."""
+    return {
+        "status": "ok",
+        "model_loaded": model_loaded,
+        "current_model": current_model_id,
+        "device": DEVICE,
+        "is_loading": is_loading,
+    }
+
 
 @app.post("/v1/models/load")
 async def load_model_endpoint(request: LoadModelRequest):

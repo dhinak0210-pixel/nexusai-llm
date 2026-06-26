@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Cpu, Download, Check, Loader2, Star, HardDrive, AlertCircle } from 'lucide-react';
 
 const FALLBACK_MODELS = [
-  { id: 'TinyLlama/TinyLlama-1.1B-Chat-v1.0', name: 'TinyLlama 1.1B', size: '1.1B', quality: 3, vram: '~2 GB', description: 'Fast, lightweight chat model — runs on CPU/GPU, always available', chat_capable: true, loaded: false },
+  { id: './fine_tuned_lora', name: 'Custom Fine-Tuned Model', size: 'Custom', quality: 5, vram: 'Depends', description: 'Your custom local instruction-aligned model (saved in ./fine_tuned_lora)', chat_capable: true, loaded: false },
   { id: 'google/gemma-2-2b-it', name: 'Gemma 2 2B', size: '2.6B', quality: 4, vram: '~5 GB', description: "Google's lightweight model — highly efficient and capable", chat_capable: true, loaded: false },
 ];
 
@@ -16,14 +16,7 @@ function QualityStars({ count }) {
   );
 }
 
-// Detect if running on deployed Space vs localhost
-const isDeployedSpace = typeof window !== 'undefined' &&
-  !window.location.hostname.includes('localhost') &&
-  !window.location.hostname.includes('127.0.0.1');
-
 export default function ModelPicker({ serverUrl }) {
-  // On deployed Space: use relative URL (same container). On localhost: use configured serverUrl.
-  const baseUrl = isDeployedSpace ? '' : (serverUrl || 'http://localhost:8000').replace(/\/+$/, '');
   const [models, setModels] = useState(FALLBACK_MODELS);
   const [loading, setLoading] = useState(null); // model id being loaded
   const [error, setError] = useState(null);
@@ -32,7 +25,7 @@ export default function ModelPicker({ serverUrl }) {
   // Fetch models from server
   useEffect(() => {
     if (!serverUrl) return;
-    const url = baseUrl + '/v1/models';
+    const url = serverUrl.replace(/\/+$/, '') + '/v1/models';
     fetch(url, { signal: AbortSignal.timeout(5000) })
       .then(r => r.json())
       .then(data => {
@@ -46,15 +39,10 @@ export default function ModelPicker({ serverUrl }) {
 
   const handleLoad = async (modelId) => {
     if (loading) return;
-    // If modelId is a local path (starts with './'), mark as loaded locally without server call
-    if (modelId.startsWith('./')) {
-      setModels(prev => prev.map(m => ({ ...m, loaded: m.id === modelId })));
-      return;
-    }
     setLoading(modelId);
     setError(null);
     try {
-      const url = baseUrl + '/v1/models/load';
+      const url = serverUrl.replace(/\/+$/, '') + '/v1/models/load';
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -9,12 +9,6 @@
 const HF_API_URL = 'https://router.huggingface.co/v1/chat/completions';
 const DEFAULT_HF_MODEL = 'deepseek-ai/DeepSeek-V3';
 
-// Detect if running on deployed HuggingFace Space vs local dev
-// On HF Space: hostname is *.hf.space — proxy through backend so key stays server-side
-// On localhost: call HF directly using the env API key
-const isDeployedSpace = typeof window !== 'undefined' &&
-  !window.location.hostname.includes('localhost') &&
-  !window.location.hostname.includes('127.0.0.1');
 
 const DEFAULT_SYSTEM_PROMPT = `You are NexusAI, a helpful, intelligent, and friendly AI assistant. You provide clear, accurate, and well-structured responses. Use markdown formatting when appropriate for code blocks, lists, and emphasis. Be concise but thorough.`;
 
@@ -293,12 +287,14 @@ async function streamFromHuggingFace({ messages, apiKey, systemPersona, memories
     top_p: 0.95,
   };
 
-  // On deployed Space: route through the server-side proxy (key stays server-side)
-  // On localhost: call HuggingFace directly using the env/stored API key
-  const url = isDeployedSpace ? '/v1/hf/chat/completions' : HF_API_URL;
+  // Proxy through the backend server if no client API key is provided
+  let url = HF_API_URL;
   const headers = { 'Content-Type': 'application/json' };
-  if (!isDeployedSpace && apiKey) {
+  if (apiKey) {
     headers['Authorization'] = `Bearer ${apiKey}`;
+  } else {
+    const baseUrl = (serverUrl || '').replace(/\/+$/, '');
+    url = baseUrl + '/v1/hf/chat/completions';
   }
 
   const response = await fetch(url, {
@@ -320,9 +316,8 @@ async function streamFromHuggingFace({ messages, apiKey, systemPersona, memories
  * Stream chat from a local/Colab OpenAI-compatible server
  */
 async function streamFromLocalServer({ messages, serverUrl, systemPersona, memories, signal, onToken, onDone, onError }) {
-  // On deployed Space: the local model runs in the same Docker container — use relative URL
-  // On localhost: use the configured serverUrl (http://localhost:8000)
-  const baseUrl = isDeployedSpace ? '' : serverUrl.replace(/\/+$/, '');
+  // Stream chat from a local/Colab OpenAI-compatible server at serverUrl
+  const baseUrl = (serverUrl || '').replace(/\/+$/, '');
   const url = baseUrl + '/v1/chat/completions';
   const systemPrompt = getSystemPrompt(systemPersona, memories, messages, true);
 

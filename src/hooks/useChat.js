@@ -42,21 +42,49 @@ export function useChat() {
   // Whether the server-side HF proxy is available (deployed Space with HF_TOKEN)
   const [proxyAvailable, setProxyAvailable] = useState(false);
 
-  // On mount: check if the backend has a server-side HF token (deployed Space)
-  useEffect(() => {
-    const isDeployed = !window.location.hostname.includes('localhost') &&
-      !window.location.hostname.includes('127.0.0.1');
-    if (isDeployed) {
-      fetch('/v1/config', { signal: AbortSignal.timeout(5000) })
-        .then(res => res.json())
-        .then(data => {
-          if (data.hf_token_available) {
-            setProxyAvailable(true);
-          }
-        })
-        .catch(() => {});
+  // Local server URL
+  const [serverUrl, setServerUrl] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nexus-server-url');
+      const isLocalHost = typeof window !== 'undefined' && 
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      
+      if (saved) {
+        if (!isLocalHost && (saved.includes('localhost') || saved.includes('127.0.0.1'))) {
+          return window.location.origin;
+        }
+        return saved;
+      }
+      
+      if (!isLocalHost && typeof window !== 'undefined') {
+        return window.location.origin;
+      }
+      return 'http://localhost:8000';
+    } catch {
+      return 'http://localhost:8000';
     }
-  }, []);
+  });
+
+  // Check backend server config (device, hf token proxy availability) whenever serverUrl changes
+  useEffect(() => {
+    if (!serverUrl) {
+      setProxyAvailable(false);
+      return;
+    }
+    const configUrl = serverUrl.replace(/\/+$/, '') + '/v1/config';
+    fetch(configUrl, { signal: AbortSignal.timeout(5000) })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.hf_token_available) {
+          setProxyAvailable(true);
+        } else {
+          setProxyAvailable(false);
+        }
+      })
+      .catch(() => {
+        setProxyAvailable(false);
+      });
+  }, [serverUrl]);
 
   // Backend mode: 'huggingface' or 'local'
   const [backendMode, setBackendMode] = useState(() => {
@@ -65,15 +93,6 @@ export function useChat() {
       return saved === 'custom' ? 'huggingface' : (saved || 'huggingface');
     } catch {
       return 'huggingface';
-    }
-  });
-
-  // Local server URL
-  const [serverUrl, setServerUrl] = useState(() => {
-    try {
-      return localStorage.getItem('nexus-server-url') || 'http://localhost:8000';
-    } catch {
-      return 'http://localhost:8000';
     }
   });
 
@@ -420,7 +439,7 @@ export function useChat() {
                           .replace(/[^a-z0-9]+/g, '-')
                           .replace(/(^-|-$)/g, '')
                           .slice(0, 30) || 'temp-site';
-                        finalContent = `[View Built Site](http://localhost:5173/preview/${slug})\n\n` + finalContent;
+                        finalContent = `[View Built Site](${window.location.origin}/preview/${slug})\n\n` + finalContent;
                       }
                     }
                     

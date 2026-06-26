@@ -136,7 +136,11 @@ export default function App() {
           onToggleTheme={toggleTheme}
           onOpenSidebar={() => setSidebarOpen(true)}
           backendMode={backendMode}
+          updateBackendMode={updateBackendMode}
+          hfModel={hfModel}
+          updateHfModel={updateHfModel}
           modelName={activeModelName}
+          serverUrl={serverUrl}
         />
 
         {/* Chat or Welcome */}

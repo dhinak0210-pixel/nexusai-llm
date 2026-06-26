@@ -174,7 +174,7 @@ export default function SettingsModal({
           {mode === 'local' && (
             <div className="animate-fade-in-up space-y-5">
               {/* Model Picker */}
-              <ModelPicker serverUrl={serverUrl ? serverUrl.trim() : 'http://localhost:8000'} />
+              <ModelPicker serverUrl={serverUrl ? serverUrl.trim() : (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? window.location.origin : 'http://localhost:8000')} />
             </div>
           )}
         </div>
