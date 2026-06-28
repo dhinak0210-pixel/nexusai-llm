@@ -450,20 +450,61 @@ async def get_status():
 @app.get("/v1/config")
 async def get_config():
     """Return runtime configuration for the frontend."""
+    hf_token = os.environ.get("HF_TOKEN") or os.environ.get("VITE_HF_API_KEY")
     return {
-        "hf_token_available": False,
-        "proxy_available": False,
+        "hf_token_available": bool(hf_token),
+        "proxy_available": True,
         "device": DEVICE,
     }
 
 
 @app.post("/v1/hf/chat/completions")
 async def proxy_hf_chat(request: Request):
-    """Proxy cloud model requests to HuggingFace. Disabled to prevent HF token usage."""
-    raise HTTPException(
-        status_code=403,
-        detail="Hugging Face cloud proxy is disabled. Use local models instead."
-    )
+    """Proxy cloud model requests to HuggingFace Router with streaming support."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    hf_token = os.environ.get("HF_TOKEN") or os.environ.get("VITE_HF_API_KEY")
+    if not hf_token:
+        # Try reading local cache or file as fallback
+        token_path = os.path.expanduser("~/.cache/huggingface/token")
+        if os.path.exists(token_path):
+            try:
+                with open(token_path, "r") as f:
+                    hf_token = f.read().strip()
+            except Exception:
+                pass
+
+    headers = {
+        "Content-Type": "application/json",
+    }
+    if hf_token:
+        headers["Authorization"] = f"Bearer {hf_token}"
+
+    def event_generator():
+        try:
+            with http_requests.post(
+                "https://router.huggingface.co/v1/chat/completions",
+                headers=headers,
+                json=body,
+                stream=True,
+                timeout=30
+            ) as r:
+                if r.status_code != 200:
+                    error_detail = r.text
+                    yield f"data: {json.dumps({'choices': [{'delta': {'content': f'⚠️ Hugging Face API Proxy Error ({r.status_code}): {error_detail}'}}]})}\n\n"
+                    yield "data: [DONE]\n\n"
+                    return
+                for chunk in r.iter_lines():
+                    if chunk:
+                        yield chunk.decode('utf-8') + "\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'choices': [{'delta': {'content': f'⚠️ Proxy Connection Error: {str(e)}'}}]})}\n\n"
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 def is_downloader_running():
