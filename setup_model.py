@@ -2,12 +2,14 @@
 """
 NexusAI Standalone — Pre-trained Model Downloader
 =================================================
-Pre-downloads and verifies free pre-trained models from HuggingFace
-to ensure they are cached locally for the chat application.
+Pre-downloads and verifies the 4 curated pre-trained models from HuggingFace
+to ensure they are cached locally for the offline chat application.
 
 Usage:
+  python3 setup_model.py --model qwen
+  python3 setup_model.py --model smollm
+  python3 setup_model.py --model phi3
   python3 setup_model.py --model tinyllama
-  python3 setup_model.py --model phi2
 """
 
 import argparse
@@ -16,20 +18,16 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 MODELS = {
-    "tinyllama": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-    "phi2": "microsoft/phi-2",
-    "llama3": "meta-llama/Llama-3.2-1B-Instruct",
-    "mistral": "mistralai/Mistral-7B-Instruct-v0.3",
-    "gemma": "google/gemma-2-2b-it",
+    "gemma4": "google/gemma-4-12B-it",
 }
 
 def main():
     parser = argparse.ArgumentParser(description="Download free pre-trained LLMs from HuggingFace")
     parser.add_argument(
         "--model",
-        choices=["tinyllama", "phi2", "llama3", "mistral", "gemma"],
-        default="tinyllama",
-        help="Select the model to download (default: tinyllama)"
+        choices=["gemma4"],
+        default="gemma4",
+        help="Select the model to download (default: gemma4)"
     )
     args = parser.parse_args()
 
@@ -62,7 +60,7 @@ def main():
 
         print("\n" + "=" * 60)
         print(f"🎉 SUCCESS: {args.model.upper()} is cached and ready to use locally!")
-        print(f"👉 Next, start the chat server: python3 chat_app.py --model {args.model}")
+        print(f"👉 Next, start the chat server: python3 backend/server.py")
         print("=" * 60)
 
     except Exception as e:

@@ -44,7 +44,7 @@ def main():
 
     # 1. Test root endpoint
     print("1. Checking Server Status...")
-    status_code, body = make_request(f"{base_url}/")
+    status_code, body = make_request(f"{base_url}/v1/status")
     if status_code != 200:
         print("❌ Server root check failed. Is the server running?")
         sys.exit(1)

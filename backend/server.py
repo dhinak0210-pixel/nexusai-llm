@@ -54,18 +54,36 @@ MODEL_REGISTRY = {
         "description": "Your custom local instruction-aligned model (saved in ./fine_tuned_lora)",
         "chat_capable": True,
     },
-    "google/gemma-2-2b-it": {
-        "id": "google/gemma-2-2b-it",
-        "name": "Gemma 2 2B",
-        "size": "2.6B",
-        "quality": 4,
-        "vram": "~5 GB",
-        "description": "Google's lightweight model — highly efficient and capable",
-        "chat_capable": True,
-    },
 }
 
 DEFAULT_MODEL = "./fine_tuned_lora"
+
+# Model download status tracking
+download_status = {}  # model_id -> {"status": "idle"|"downloading"|"completed"|"failed", "error": None}
+
+def download_model_in_background(model_id: str):
+    global download_status
+    download_status[model_id] = {"status": "downloading", "error": None}
+    try:
+        print(f"📥 Starting background download of tokenizer for {model_id}...")
+        tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
+        print(f"📥 Starting background download of weights for {model_id}...")
+        model = AutoModelForCausalLM.from_pretrained(
+            model_id,
+            torch_dtype=torch.float32,
+            low_cpu_mem_usage=True,
+            trust_remote_code=True,
+        )
+        del model
+        del tokenizer
+        gc.collect()
+        download_status[model_id] = {"status": "completed", "error": None}
+        print(f"✅ Background download of {model_id} completed and cached successfully!")
+    except Exception as e:
+        error_msg = str(e)
+        print(f"❌ Background download of {model_id} failed: {error_msg}")
+        download_status[model_id] = {"status": "failed", "error": error_msg}
+
 
 # ============================================
 # App Setup
@@ -115,6 +133,19 @@ def load_model(model_id: str):
         print(f"✅ Model {model_id} is already loaded")
         return
 
+    # Verify that the model is fully downloaded before attempting to load
+    cached_repos = set()
+    try:
+        from huggingface_hub import scan_cache_dir
+        cache_info = scan_cache_dir()
+        for repo in cache_info.repos:
+            cached_repos.add(repo.repo_id)
+    except Exception:
+        pass
+
+    if not is_model_fully_downloaded(model_id, cached_repos):
+        raise ValueError(f"Model '{model_id}' is not fully downloaded yet. Please wait until download completes.")
+
     is_loading = True
 
     try:
@@ -147,6 +178,7 @@ def load_model(model_id: str):
 
         load_kwargs = {
             "trust_remote_code": True,
+            "low_cpu_mem_usage": True,
         }
 
         if DEVICE == "cuda":
@@ -154,6 +186,8 @@ def load_model(model_id: str):
             load_kwargs["device_map"] = "auto"
         else:
             load_kwargs["torch_dtype"] = torch.bfloat16
+            load_kwargs["device_map"] = "auto"
+            load_kwargs["offload_folder"] = "offload_cache"
 
         # Load base model first
         print(f"📦 Loading base model: {base_model_id}")
@@ -170,7 +204,7 @@ def load_model(model_id: str):
             except Exception as e:
                 print(f"⚠️ Failed to load/merge Peft adapter: {e}. Running base model directly.")
 
-        if DEVICE == "cpu":
+        if DEVICE == "cpu" and "device_map" not in load_kwargs:
             model = model.to(DEVICE)
 
         model.eval()
@@ -279,6 +313,7 @@ async def stream_generate(request: ChatRequest):
         "max_new_tokens": request.max_tokens,
         "temperature": max(request.temperature, 0.01),
         "top_p": request.top_p,
+        "repetition_penalty": 1.15,
         "do_sample": True,
         "streamer": streamer,
         "pad_token_id": tokenizer.pad_token_id,
@@ -295,7 +330,24 @@ async def stream_generate(request: ChatRequest):
     accumulated_text = ""
     sent_len = 0
     
-    for token_text in streamer:
+    import queue
+    while True:
+        try:
+            token_text = streamer.text_queue.get_nowait()
+            if token_text is None:
+                break
+        except queue.Empty:
+            if not thread.is_alive():
+                # Double-check the queue one last time in case items arrived as the thread was exiting
+                try:
+                    token_text = streamer.text_queue.get_nowait()
+                    if token_text is None:
+                        break
+                except queue.Empty:
+                    break
+            await asyncio.sleep(0.01)
+            continue
+
         accumulated_text += token_text
         
         # Check for stop strings
@@ -382,69 +434,142 @@ async def root():
     }
 
 
+@app.get("/v1/status")
+async def get_status():
+    """Return server status details."""
+    return {
+        "service": "NexusAI Multi-Model LLM Server",
+        "current_model": current_model_id,
+        "device": DEVICE,
+        "status": "ready" if model_loaded else ("loading" if is_loading else "idle"),
+        "gpu_available": torch.cuda.is_available(),
+        "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+    }
+
+
 @app.get("/v1/config")
 async def get_config():
     """Return runtime configuration for the frontend."""
-    hf_token = os.environ.get("HF_TOKEN", "")
     return {
-        "hf_token_available": bool(hf_token),
-        "proxy_available": True,
+        "hf_token_available": False,
+        "proxy_available": False,
         "device": DEVICE,
     }
 
 
 @app.post("/v1/hf/chat/completions")
 async def proxy_hf_chat(request: Request):
-    """Proxy cloud model requests to HuggingFace using server-side HF_TOKEN.
-    This keeps the API key securely on the server — never exposed to the browser.
-    """
-    hf_token = os.environ.get("HF_TOKEN", "")
-    if not hf_token:
-        raise HTTPException(
-            status_code=401,
-            detail="HF_TOKEN not configured on this server. Set it in Space secrets."
-        )
+    """Proxy cloud model requests to HuggingFace. Disabled to prevent HF token usage."""
+    raise HTTPException(
+        status_code=403,
+        detail="Hugging Face cloud proxy is disabled. Use local models instead."
+    )
 
-    body = await request.json()
-    is_stream = body.get("stream", True)
 
-    hf_url = "https://router.huggingface.co/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {hf_token}",
-        "Content-Type": "application/json",
-    }
+def is_downloader_running():
+    try:
+        import psutil
+        for proc in psutil.process_iter(['cmdline']):
+            cmd = proc.info.get('cmdline')
+            if cmd and any('aria_download_wrapper.py' in part for part in cmd):
+                return True
+    except Exception:
+        try:
+            import subprocess
+            out = subprocess.check_output(["ps", "aux"])
+            if b"aria_download_wrapper.py" in out:
+                return True
+        except Exception:
+            pass
+    return False
 
-    if is_stream:
-        def generate_proxy():
-            try:
-                with http_requests.post(
-                    hf_url, json=body, headers=headers, stream=True, timeout=120
-                ) as resp:
-                    for chunk in resp.iter_content(chunk_size=None):
-                        if chunk:
-                            yield chunk
-            except Exception as e:
-                error_msg = f'data: {{"error": "{str(e)}"}}'  
-                yield error_msg.encode()
+def get_download_progress():
+    log_path = os.path.expanduser("~/.cache/huggingface/hub/models--google--gemma-4-12B-it/blobs/wrapper.log")
+    if not os.path.exists(log_path):
+        return None
+    try:
+        with open(log_path, 'r') as f:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(max(0, size - 2000))
+            lines = f.readlines()
+            for line in reversed(lines):
+                if "(" in line and "%" in line and "DL:" in line:
+                    start = line.find("[")
+                    end = line.find("]")
+                    if start != -1 and end != -1:
+                        return line[start:end+1]
+    except Exception:
+        pass
+    return "Downloading..."
 
-        return StreamingResponse(
-            generate_proxy(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "X-Accel-Buffering": "no",
-            }
-        )
-    else:
-        resp = http_requests.post(hf_url, json=body, headers=headers, timeout=120)
-        return resp.json()
+def is_model_fully_downloaded(model_id: str, cached_repos: set) -> bool:
+    if model_id == "./fine_tuned_lora":
+        return os.path.exists("./fine_tuned_lora")
+    if model_id not in cached_repos:
+        return False
+        
+    normalized_id = model_id.replace("/", "--")
+    cache_dir = os.path.expanduser(f"~/.cache/huggingface/hub/models--{normalized_id}")
+    snapshots_dir = os.path.join(cache_dir, "snapshots")
+    if not os.path.exists(snapshots_dir):
+        return False
+        
+    snapshots = os.listdir(snapshots_dir)
+    if not snapshots:
+        return False
+        
+    latest_snapshot = os.path.join(snapshots_dir, snapshots[0])
+    has_weights = False
+    for root, dirs, files in os.walk(latest_snapshot):
+        for file in files:
+            if file.endswith((".safetensors", ".bin", ".pt")):
+                has_weights = True
+                file_path = os.path.join(root, file)
+                if os.path.islink(file_path):
+                    target = os.readlink(file_path)
+                    abs_target = os.path.normpath(os.path.join(root, target))
+                    if os.path.exists(abs_target + ".aria2"):
+                        return False
+                else:
+                    if os.path.exists(file_path + ".aria2"):
+                        return False
+                        
+    return has_weights
 
 
 @app.get("/v1/models")
 async def list_models():
-    """List all available models with metadata."""
+    """List all available models with metadata and download status."""
+    cached_repos = set()
+    try:
+        from huggingface_hub import scan_cache_dir
+        cache_info = scan_cache_dir()
+        for repo in cache_info.repos:
+            cached_repos.add(repo.repo_id)
+    except Exception as e:
+        print(f"⚠️ Error scanning cache: {e}")
+
     models = []
     for mid, info in MODEL_REGISTRY.items():
+        is_downloaded = is_model_fully_downloaded(mid, cached_repos)
+        
+        # Check if currently downloading
+        is_downloading = False
+        if not is_downloaded and mid == "google/gemma-4-12B-it":
+            is_downloading = is_downloader_running()
+            
+        status = "completed" if is_downloaded else ("downloading" if is_downloading else "idle")
+        status_info = download_status.get(mid, {"status": status, "error": None})
+        if status_info["status"] != status and status == "downloading":
+            status_info["status"] = "downloading"
+
+        description = info["description"]
+        if status_info["status"] == "downloading" and mid == "google/gemma-4-12B-it":
+            progress = get_download_progress()
+            if progress:
+                description += f" | Progress: {progress}"
+
         models.append(
             {
                 "id": mid,
@@ -454,12 +579,37 @@ async def list_models():
                 "size": info["size"],
                 "quality": info["quality"],
                 "vram": info["vram"],
-                "description": info["description"],
+                "description": description,
                 "chat_capable": info["chat_capable"],
                 "loaded": mid == current_model_id,
+                "downloaded": is_downloaded,
+                "download_status": status_info["status"],
+                "error": status_info.get("error"),
             }
         )
     return {"object": "list", "data": models}
+
+
+class DownloadModelRequest(BaseModel):
+    model_id: str
+
+
+@app.post("/v1/models/download")
+async def download_model_endpoint(request: DownloadModelRequest):
+    """Start downloading a model locally."""
+    if request.model_id not in MODEL_REGISTRY:
+        raise HTTPException(400, f"Unknown model: {request.model_id}")
+    
+    if request.model_id == "./fine_tuned_lora":
+        raise HTTPException(400, "Cannot download custom fine-tuned model. It must be generated or placed locally in ./fine_tuned_lora")
+        
+    status_info = download_status.get(request.model_id, {"status": "idle"})
+    if status_info["status"] == "downloading":
+        return {"status": "downloading", "message": "Model is already downloading"}
+        
+    thread = Thread(target=download_model_in_background, args=(request.model_id,), daemon=True)
+    thread.start()
+    return {"status": "downloading", "message": "Started downloading model in background"}
 
 @app.get("/v1/health")
 async def health_check():
@@ -480,6 +630,21 @@ async def load_model_endpoint(request: LoadModelRequest):
         available = list(MODEL_REGISTRY.keys())
         raise HTTPException(
             400, f"Unknown model: {request.model_id}. Available: {available}"
+        )
+
+    # Check if the model is fully downloaded first
+    cached_repos = set()
+    try:
+        from huggingface_hub import scan_cache_dir
+        cache_info = scan_cache_dir()
+        for repo in cache_info.repos:
+            cached_repos.add(repo.repo_id)
+    except Exception:
+        pass
+
+    if not is_model_fully_downloaded(request.model_id, cached_repos):
+        raise HTTPException(
+            400, f"Model '{request.model_id}' is not fully downloaded yet. Please wait until download completes."
         )
 
     if is_loading:
@@ -510,7 +675,10 @@ async def chat_completions(request: ChatRequest):
     # If a different model is requested, hot-swap
     if request.model and request.model != current_model_id:
         if request.model in MODEL_REGISTRY:
-            load_model(request.model)
+            try:
+                load_model(request.model)
+            except Exception as e:
+                raise HTTPException(400, f"Failed to hot-swap model: {str(e)}")
 
     if request.stream:
         return StreamingResponse(
@@ -535,6 +703,7 @@ async def chat_completions(request: ChatRequest):
                 max_new_tokens=request.max_tokens,
                 temperature=max(request.temperature, 0.01),
                 top_p=request.top_p,
+                repetition_penalty=1.15,
                 do_sample=True,
                 pad_token_id=tokenizer.pad_token_id,
                 eos_token_id=tokenizer.eos_token_id,

@@ -1,29 +1,28 @@
 import { useState, useEffect, useRef } from 'react';
-import { Menu, Sun, Moon, Sparkles, Cloud, Server, ChevronDown, Check, Loader2, Cpu } from 'lucide-react';
+import { Menu, Sun, Moon, Server, Cloud, ChevronDown, Check, Loader2, Cpu, Brain, Code, Sparkles } from 'lucide-react';
 
 const CLOUD_MODELS = [
-  { id: 'deepseek-ai/DeepSeek-V3', name: 'DeepSeek V3', size: '671B' },
-  { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'Qwen 2.5 Coder', size: '32B' },
-  { id: 'meta-llama/Llama-3.3-70B-Instruct', name: 'Llama 3.3 70B', size: '70B' },
-  { id: 'deepseek-ai/DeepSeek-R1', name: 'DeepSeek R1', size: '671B' },
-  { id: 'Qwen/Qwen2.5-7B-Instruct', name: 'Qwen 2.5 7B', size: '7B' }
+  { id: 'deepseek-ai/DeepSeek-R1', name: 'DeepSeek R1', desc: 'State-of-the-art Reasoning LLM', badge: 'Reasoning', icon: Brain },
+  { id: 'deepseek-ai/DeepSeek-V3', name: 'DeepSeek V3', desc: 'High-performance Chat & Text LLM', badge: 'General', icon: Sparkles },
+  { id: 'meta-llama/Llama-3.3-70B-Instruct', name: 'Llama 3.3 70B', desc: 'Flagship open LLM from Meta', badge: 'Flagship', icon: Cpu },
+  { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'Qwen 2.5 Coder', desc: 'Elite programming and technical helper', badge: 'Coding', icon: Code },
+  { id: 'Qwen/Qwen2.5-7B-Instruct', name: 'Qwen 2.5 7B', desc: 'Ultra-fast conversational helper', badge: 'Fast', icon: Sparkles }
 ];
 
 export default function Header({ 
   isDark, 
   onToggleTheme, 
   onOpenSidebar, 
-  backendMode, 
+  modelName,
+  serverUrl,
+  backendMode,
   updateBackendMode,
   hfModel,
   updateHfModel,
-  modelName,
-  serverUrl
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [localModels, setLocalModels] = useState([
-    { id: './fine_tuned_lora', name: 'Custom Fine-Tuned Model', loaded: false },
-    { id: 'google/gemma-2-2b-it', name: 'Gemma 2 2B', loaded: false }
+    { id: './fine_tuned_lora', name: 'Custom Fine-Tuned Model', loaded: false, downloaded: true }
   ]);
   const [loadingLocalId, setLoadingLocalId] = useState(null);
   const dropdownRef = useRef(null);
@@ -59,18 +58,12 @@ export default function Header({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelectCloudModel = (modelId) => {
-    updateBackendMode('huggingface');
-    updateHfModel(modelId);
-    setDropdownOpen(false);
-  };
-
   const handleSelectLocalModel = async (modelId) => {
     if (loadingLocalId) return;
     setLoadingLocalId(modelId);
-    updateBackendMode('local');
     
     try {
+      updateBackendMode('local');
       const url = serverUrl.replace(/\/+$/, '') + '/v1/models/load';
       await fetch(url, {
         method: 'POST',
@@ -94,11 +87,16 @@ export default function Header({
     }
   };
 
-  const modelLabel = modelName || (backendMode === 'local' ? 'Local LLM' : 'DeepSeek V3');
-  const ModeIcon = backendMode === 'local' ? Server : Cloud;
+  const handleSelectCloudModel = (modelId) => {
+    updateBackendMode('huggingface');
+    updateHfModel(modelId);
+    setDropdownOpen(false);
+  };
+
+  const modelLabel = modelName || (backendMode === 'local' ? 'Local Model' : 'Cloud Model');
 
   return (
-    <header className="flex items-center justify-between px-6 py-4.5 border-b border-surface-200/30 dark:border-surface-800/30 bg-white/40 dark:bg-surface-950/40 glass select-none z-50">
+    <header className="flex items-center justify-between px-6 py-4 border-b border-surface-200/30 dark:border-surface-800/30 bg-white/40 dark:bg-surface-950/40 glass select-none z-50">
       <div className="flex items-center gap-4">
         <button
           onClick={onOpenSidebar}
@@ -111,14 +109,18 @@ export default function Header({
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-surface-200/50 dark:border-surface-800/40 hover:bg-surface-100/50 dark:hover:bg-surface-900/30 transition-all duration-200 cursor-pointer"
+            className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-surface-200/50 dark:border-surface-800/40 hover:bg-surface-100/50 dark:hover:bg-surface-900/30 transition-all duration-200 cursor-pointer shadow-sm hover:shadow"
           >
-            <ModeIcon className="w-4.5 h-4.5 text-primary-500/80 dark:text-primary-400/80" />
+            {backendMode === 'local' ? (
+              <Server className="w-4.5 h-4.5 text-emerald-500" />
+            ) : (
+              <Cloud className="w-4.5 h-4.5 text-primary-500 dark:text-primary-400" />
+            )}
             <div className="flex flex-col text-left">
-              <span className="text-[10px] uppercase tracking-wider text-surface-400 dark:text-surface-500 font-bold leading-none mb-0.5">
-                Active Model
+              <span className="text-[10px] uppercase tracking-wider text-surface-400 dark:text-surface-500 font-extrabold leading-none mb-0.5">
+                {backendMode === 'local' ? 'Active Local Model' : 'Active Cloud Model'}
               </span>
-              <span className="text-sm font-semibold text-surface-850 dark:text-surface-150 flex items-center gap-1.5">
+              <span className="text-sm font-semibold text-surface-850 dark:text-surface-150 flex items-center gap-1.5 leading-none">
                 {modelLabel}
                 <ChevronDown className={`w-3.5 h-3.5 text-surface-400 dark:text-surface-500 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
               </span>
@@ -127,64 +129,76 @@ export default function Header({
 
           {/* Dropdown Menu */}
           {dropdownOpen && (
-            <div className="absolute left-0 mt-2 w-72 rounded-2xl border border-surface-200/60 dark:border-surface-800/45 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl shadow-2xl animate-fade-in-up py-2.5 z-[100] max-h-[420px] overflow-y-auto">
+            <div className="absolute left-0 mt-2 w-80 rounded-2xl border border-surface-200/60 dark:border-surface-800/45 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl shadow-2xl animate-fade-in-up py-3 z-[100] max-h-[500px] overflow-y-auto">
               
-              {/* Category: Local Models */}
-              <div className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 flex items-center gap-1.5">
-                <Server className="w-3.5 h-3.5 text-primary-500" />
-                Local / Fine-Tuned Models
+              {/* Category: Cloud Models */}
+              <div className="px-3.5 py-1.5 text-[11px] font-extrabold uppercase tracking-wider text-primary-600 dark:text-primary-400 flex items-center gap-1.5">
+                <Cloud className="w-3.5 h-3.5" />
+                Cloud Models (Hugging Face)
               </div>
-              <div className="space-y-0.5 mt-1 px-1">
-                {localModels.map((m) => {
-                  const isActive = backendMode === 'local' && m.loaded;
-                  const isLoading = loadingLocalId === m.id;
+              <div className="space-y-0.5 mt-1 px-1.5 mb-3">
+                {CLOUD_MODELS.map((m) => {
+                  const isActive = backendMode === 'huggingface' && hfModel === m.id;
+                  const IconComponent = m.icon;
+                  
                   return (
                     <button
                       key={m.id}
-                      onClick={() => handleSelectLocalModel(m.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all duration-150 cursor-pointer
+                      onClick={() => handleSelectCloudModel(m.id)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-all duration-150
                         ${isActive 
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold' 
-                          : 'hover:bg-surface-100 dark:hover:bg-surface-800/50 text-surface-700 dark:text-surface-300'}`}
+                          ? 'bg-primary-500/10 text-primary-600 dark:text-primary-400 font-semibold border-l-2 border-primary-550 pl-2' 
+                          : 'hover:bg-surface-100 dark:hover:bg-surface-800/50 text-surface-700 dark:text-surface-300 cursor-pointer'}`}
                     >
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs truncate">{m.name}</span>
-                        <span className="text-[10px] text-surface-400 dark:text-surface-500">FastAPI Server</span>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <IconComponent className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary-500' : 'text-surface-400 dark:text-surface-500'}`} />
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-semibold truncate">{m.name}</span>
+                            <span className="px-1 py-0.2 text-[8px] font-bold rounded bg-surface-100 dark:bg-surface-800 text-surface-500 dark:text-surface-400">{m.badge}</span>
+                          </div>
+                          <span className="text-[10px] text-surface-400 dark:text-surface-500 truncate">{m.desc}</span>
+                        </div>
                       </div>
-                      <div className="shrink-0 ml-2">
-                        {isActive && <Check className="w-4 h-4 text-emerald-500" />}
-                        {isLoading && <Loader2 className="w-4 h-4 text-primary-500 animate-spin" />}
-                      </div>
+                      {isActive && <Check className="w-4 h-4 text-primary-500 shrink-0 ml-1" />}
                     </button>
                   );
                 })}
               </div>
 
-              {/* Divider */}
-              <div className="my-2 border-t border-surface-200/50 dark:border-surface-800/30" />
-
-              {/* Category: Cloud Models */}
-              <div className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 flex items-center gap-1.5">
-                <Cloud className="w-3.5 h-3.5 text-accent-500" />
-                Cloud API Models
+              {/* Category: Local Models */}
+              <div className="px-3.5 py-1.5 border-t border-surface-100 dark:border-surface-800/60 pt-3 text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                <Server className="w-3.5 h-3.5" />
+                Local / Fine-Tuned Models
               </div>
-              <div className="space-y-0.5 mt-1 px-1">
-                {CLOUD_MODELS.map((m) => {
-                  const isActive = backendMode === 'huggingface' && hfModel === m.id;
+              <div className="space-y-0.5 mt-1 px-1.5">
+                {localModels.map((m) => {
+                  const isActive = backendMode === 'local' && m.loaded;
+                  const isLoading = loadingLocalId === m.id;
+                  const isDownloaded = m.downloaded;
+                  
                   return (
                     <button
                       key={m.id}
-                      onClick={() => handleSelectCloudModel(m.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all duration-150 cursor-pointer
+                      onClick={() => isDownloaded && handleSelectLocalModel(m.id)}
+                      disabled={!isDownloaded || isLoading}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-all duration-150
                         ${isActive 
-                          ? 'bg-primary-500/10 text-primary-600 dark:text-primary-400 font-semibold' 
-                          : 'hover:bg-surface-100 dark:hover:bg-surface-800/50 text-surface-700 dark:text-surface-300'}`}
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border-l-2 border-emerald-550 pl-2' 
+                          : !isDownloaded
+                          ? 'opacity-40 cursor-not-allowed text-surface-400'
+                          : 'hover:bg-surface-100 dark:hover:bg-surface-800/50 text-surface-700 dark:text-surface-300 cursor-pointer'}`}
                     >
                       <div className="flex flex-col min-w-0">
-                        <span className="text-xs truncate">{m.name}</span>
-                        <span className="text-[10px] text-surface-400 dark:text-surface-500 font-medium">HuggingFace API • {m.size}</span>
+                        <span className="text-xs font-semibold truncate">{m.name}</span>
+                        <span className="text-[10px] text-surface-400 dark:text-surface-500">
+                          {isDownloaded ? (isActive ? 'Active Now' : 'Ready to load') : 'Download in settings first'}
+                        </span>
                       </div>
-                      {isActive && <Check className="w-4 h-4 text-primary-500" />}
+                      <div className="shrink-0 ml-2">
+                        {isActive && <Check className="w-4 h-4 text-emerald-500" />}
+                        {isLoading && <Loader2 className="w-4 h-4 text-primary-500 animate-spin" />}
+                      </div>
                     </button>
                   );
                 })}

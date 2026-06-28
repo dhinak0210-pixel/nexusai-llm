@@ -2,7 +2,7 @@ import os
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
-model_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+model_id = "google/gemma-4-12B-it"
 token = os.environ.get("HF_TOKEN") or None
 
 print(f"Downloading {model_id}...")

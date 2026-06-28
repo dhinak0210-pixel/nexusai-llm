@@ -86,11 +86,10 @@ export function useChat() {
       });
   }, [serverUrl]);
 
-  // Backend mode: 'huggingface' or 'local'
+  // Backend mode: local or huggingface (cloud)
   const [backendMode, setBackendMode] = useState(() => {
     try {
-      const saved = localStorage.getItem('nexus-backend-mode');
-      return saved === 'custom' ? 'huggingface' : (saved || 'huggingface');
+      return localStorage.getItem('nexus-backend-mode') || 'huggingface';
     } catch {
       return 'huggingface';
     }

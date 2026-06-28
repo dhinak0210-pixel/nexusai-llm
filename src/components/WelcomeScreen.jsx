@@ -1,4 +1,4 @@
-import { Sparkles, Code2, BookOpen, Lightbulb, PenLine, Zap } from 'lucide-react';
+import { Sparkles, Code2, BookOpen, Lightbulb, PenLine, Zap, Cloud, Server } from 'lucide-react';
 
 const suggestions = [
   { icon: Code2, title: 'Craft Code & Logic', prompt: 'Write a Python function that implements binary search with detailed comments', color: 'from-violet-500 to-indigo-500' },
@@ -8,17 +8,13 @@ const suggestions = [
 ];
 
 export default function WelcomeScreen({ onSend, disabled, backendMode, hfModel }) {
-  const modelName = backendMode === 'local'
-    ? 'Local LLM'
-    : (hfModel ? (hfModel.split('/').pop() || 'HuggingFace Model') : 'DeepSeek V3');
+  const isCloud = backendMode === 'huggingface';
+  
+  const subtitle = isCloud
+    ? `Cloud Engine Enabled: Using top-tier frontier models via Hugging Face`
+    : 'Local Engine Enabled: Private, secure, offline-first local inference';
 
-  const subtitle = backendMode === 'local'
-    ? 'Powered by your self-hosted LLM — secure, private, and offline'
-    : `Powered by ${modelName} — high-fidelity cloud intelligence`;
-
-  const warningText = backendMode === 'local'
-    ? 'Start your local server or configure the endpoint in settings to unlock interaction.'
-    : 'Provide your HuggingFace API token in settings to initialize the assistant.';
+  const warningText = 'Start your local FastAPI server or configure the URL in settings to unlock interaction.';
 
   return (
     <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-6 sm:py-12 relative overflow-hidden select-none">
@@ -34,7 +30,19 @@ export default function WelcomeScreen({ onSend, disabled, backendMode, hfModel }
           <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-surface-900 dark:text-white mb-3 bg-gradient-to-r from-primary-500 via-primary-400 to-accent-400 bg-clip-text text-transparent">
             How can I help you today?
           </h2>
-          <p className="text-surface-500 dark:text-surface-400 text-xs sm:text-sm font-medium tracking-wide">{subtitle}</p>
+          
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${
+              isCloud 
+                ? 'bg-primary-500/10 border-primary-500/20 text-primary-600 dark:text-primary-400' 
+                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+            }`}>
+              {isCloud ? <Cloud className="w-3.5 h-3.5" /> : <Server className="w-3.5 h-3.5" />}
+              {isCloud ? 'Cloud Mode' : 'Local Mode'}
+            </span>
+          </div>
+          
+          <p className="text-surface-500 dark:text-surface-400 text-xs sm:text-sm font-medium tracking-wide mt-3">{subtitle}</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

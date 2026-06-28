@@ -274,7 +274,7 @@ The user has provided their clarification details. Do NOT ask any more clarifica
 /**
  * Stream chat from HuggingFace Inference API
  */
-async function streamFromHuggingFace({ messages, apiKey, systemPersona, memories, hfModel, signal, onToken, onDone, onError }) {
+async function streamFromHuggingFace({ messages, apiKey, serverUrl, systemPersona, memories, hfModel, signal, onToken, onDone, onError }) {
   const systemPrompt = getSystemPrompt(systemPersona, memories, messages, false);
   const modelToUse = hfModel || DEFAULT_HF_MODEL;
 
@@ -401,7 +401,7 @@ export async function streamChatCompletion({
     if (backend === 'local') {
       await streamFromLocalServer({ messages, serverUrl, systemPersona, memories, signal, onToken, onDone, onError });
     } else {
-      await streamFromHuggingFace({ messages, apiKey, systemPersona, memories, hfModel, signal, onToken, onDone, onError });
+      await streamFromHuggingFace({ messages, apiKey, serverUrl, systemPersona, memories, hfModel, signal, onToken, onDone, onError });
     }
   } catch (error) {
     if (error.name === 'AbortError') {

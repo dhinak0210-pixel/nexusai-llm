@@ -55,10 +55,9 @@ export default function App() {
   const [dismissedClarifyId, setDismissedClarifyId] = useState(null);
 
   const hasMessages = activeConversation?.messages?.length > 0;
-  // Disabled if: HF mode with no key AND no server proxy, OR local mode with no URL
-  const isDisabled =
-    (backendMode === 'huggingface' && !apiKey && !proxyAvailable) ||
-    (backendMode === 'local' && !serverUrl && !proxyAvailable);
+
+  // Disabled if: local mode with no server URL
+  const isDisabled = backendMode === 'local' && !serverUrl;
 
   const artifactsList = extractArtifacts(activeConversation?.messages);
 
