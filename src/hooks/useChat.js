@@ -457,6 +457,135 @@ export function useChat() {
         onError: (error) => {
           setIsStreaming(false);
           abortControllerRef.current = null;
+          
+          const isQuotaError = error.message.includes('402') || error.message.includes('depleted') || error.message.includes('429');
+          
+          if (isQuotaError && backendMode === 'huggingface') {
+            // Auto-switch to local runner
+            setBackendMode('local');
+            localStorage.setItem('nexus-backend-mode', 'local');
+            
+            setConversations((prev) => {
+              const updated = prev.map((c) => {
+                if (c.id === currentConvId) {
+                  const msgs = [...c.messages];
+                  const lastMsg = msgs[msgs.length - 1];
+                  if (lastMsg && lastMsg.role === 'assistant') {
+                    msgs[msgs.length - 1] = {
+                      ...lastMsg,
+                      content: `⚠️ *Hugging Face cloud quota depleted (Error 402). Auto-switching to Local Runner...* 🔄\n\n`,
+                      isStreaming: true,
+                    };
+                  }
+                  return { ...c, messages: msgs };
+                }
+                return c;
+              });
+              return updated;
+            });
+            
+            setIsStreaming(true);
+            const retryController = new AbortController();
+            abortControllerRef.current = retryController;
+            
+            streamChatCompletion({
+              backend: 'local',
+              messages: apiMessages,
+              apiKey,
+              serverUrl,
+              systemPersona,
+              memories,
+              hfModel,
+              signal: retryController.signal,
+              onToken: (token) => {
+                setConversations((prev) => {
+                  const updated = prev.map((c) => {
+                    if (c.id === currentConvId) {
+                      const msgs = [...c.messages];
+                      const lastMsg = msgs[msgs.length - 1];
+                      if (lastMsg && lastMsg.role === 'assistant') {
+                        msgs[msgs.length - 1] = {
+                          ...lastMsg,
+                          content: lastMsg.content + token,
+                        };
+                      }
+                      return { ...c, messages: msgs };
+                    }
+                    return c;
+                  });
+                  return updated;
+                });
+              },
+              onDone: () => {
+                setIsStreaming(false);
+                abortControllerRef.current = null;
+                setConversations((prev) => {
+                  const updated = prev.map((c) => {
+                    if (c.id === currentConvId) {
+                      const msgs = c.messages.map((m) => {
+                        if (m.role === 'assistant') {
+                          let finalContent = m.content;
+                          const dMode = detectMode(content);
+                          if (dMode === 'image') {
+                            const promptSubject = content
+                              .replace(/\b(create|generate|draw|paint|show|make|render)\b/gi, '')
+                              .replace(/\b(image|picture|photo|illustration|drawing|portrait|sketch|graphic|wallpaper|cat|dog|animal)\b/gi, '')
+                              .replace(/\b(of|a|an)\b/gi, '')
+                              .trim();
+                            const queryParam = encodeURIComponent(promptSubject || content.trim());
+                            const pollinationsUrl = `https://image.pollinations.ai/prompt/${queryParam}`;
+                            finalContent = `⚠️ *Hugging Face cloud quota depleted (Error 402). Auto-switched to Local Runner.* ✅\n\nHere is the generated image for you:\n\n![Generated Image](${pollinationsUrl})`;
+                          } else if (dMode === 'pdf') {
+                            if (!finalContent.includes('pdf_download_placeholder') && !finalContent.includes('Download')) {
+                              finalContent += `\n\n[Download Edited PDF](blob:pdf_download_placeholder)`;
+                            }
+                          } else if (dMode === 'ppt') {
+                            if (!finalContent.includes('ppt_download_placeholder') && !finalContent.includes('Download')) {
+                              finalContent += `\n\n[Download Presentation](blob:ppt_download_placeholder)`;
+                            }
+                          }
+                          return { ...m, content: finalContent, isStreaming: false };
+                        }
+                        return m;
+                      });
+                      return { ...c, messages: msgs, updatedAt: Date.now() };
+                    }
+                    return c;
+                  });
+                  saveConversations(updated);
+                  return updated;
+                });
+              },
+              onError: (retryError) => {
+                setIsStreaming(false);
+                abortControllerRef.current = null;
+                setConversations((prev) => {
+                  const updated = prev.map((c) => {
+                    if (c.id === currentConvId) {
+                      const msgs = [...c.messages];
+                      const lastMsg = msgs[msgs.length - 1];
+                      if (lastMsg && lastMsg.role === 'assistant') {
+                        msgs[msgs.length - 1] = {
+                          ...lastMsg,
+                          content: `⚠️ **Hugging Face API Credit Limit Depleted (Error 402)**\n\n` +
+                            `Failed to auto-failover to the local runner server. Please ensure the local server is running at ${serverUrl} or update your \`VITE_HF_API_KEY\` in your \`.env\` file.\n\n` +
+                            `*Local runner error: ${retryError.message}*`,
+                          isStreaming: false,
+                          isError: true,
+                        };
+                      }
+                      return { ...c, messages: msgs, updatedAt: Date.now() };
+                    }
+                    return c;
+                  });
+                  saveConversations(updated);
+                  return updated;
+                });
+              }
+            });
+            return;
+          }
+
           setConversations((prev) => {
             const updated = prev.map((c) => {
               if (c.id === currentConvId) {
@@ -465,11 +594,11 @@ export function useChat() {
                 if (lastMsg && lastMsg.role === 'assistant') {
                   let customErrorMsg = `⚠️ Error: ${error.message}`;
                   
-                  if (error.message.includes('402') || error.message.includes('depleted')) {
+                  if (error.message.includes('402') || error.message.includes('depleted') || error.message.includes('429')) {
                     customErrorMsg = `⚠️ **Hugging Face API Credit Limit Depleted (Error 402)**\n\n` +
                       `You have depleted your monthly Hugging Face free usage credits. Since your local inference server is already running, you can continue chatting immediately for free:\n\n` +
                       `1. Click the **Settings Gear** icon in the UI.\n` +
-                      `2. Switch the backend to **Local Models** (uses Phi-2 / Gemma 2 / Custom LoRA running locally).\n\n` +
+                      `2. Switch the backend to **Local Models** (uses the Custom Fine-Tuned Model running locally).\n\n` +
                       `Alternatively, you can update the \`VITE_HF_API_KEY\` variable in your local \`.env\` file with a new token from Hugging Face.`;
                   }
 
@@ -490,7 +619,7 @@ export function useChat() {
         },
       });
     },
-    [activeConversationId, apiKey, serverUrl, backendMode, systemPersona, memories, hfModel, isStreaming, saveConversations]
+    [activeConversationId, apiKey, serverUrl, backendMode, systemPersona, memories, hfModel, isStreaming, saveConversations, setBackendMode]
   );
 
   // Stop current streaming
