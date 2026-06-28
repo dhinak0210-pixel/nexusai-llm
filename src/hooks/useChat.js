@@ -42,6 +42,9 @@ export function useChat() {
   // Whether the server-side HF proxy is available (deployed Space with HF_TOKEN)
   const [proxyAvailable, setProxyAvailable] = useState(false);
 
+  // Connection status of the backend server ('checking' | 'online' | 'offline')
+  const [serverStatus, setServerStatus] = useState('checking');
+
   // Local server URL
   const [serverUrl, setServerUrl] = useState(() => {
     try {
@@ -69,21 +72,31 @@ export function useChat() {
   useEffect(() => {
     if (!serverUrl) {
       setProxyAvailable(false);
+      setServerStatus('offline');
       return;
     }
-    const configUrl = serverUrl.replace(/\/+$/, '') + '/v1/config';
-    fetch(configUrl, { signal: AbortSignal.timeout(5000) })
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.hf_token_available) {
-          setProxyAvailable(true);
-        } else {
+
+    const checkStatus = () => {
+      const configUrl = serverUrl.replace(/\/+$/, '') + '/v1/config';
+      fetch(configUrl, { signal: AbortSignal.timeout(5000) })
+        .then(res => res.json())
+        .then(data => {
+          setServerStatus('online');
+          if (data && data.hf_token_available) {
+            setProxyAvailable(true);
+          } else {
+            setProxyAvailable(false);
+          }
+        })
+        .catch(() => {
           setProxyAvailable(false);
-        }
-      })
-      .catch(() => {
-        setProxyAvailable(false);
-      });
+          setServerStatus('offline');
+        });
+    };
+
+    checkStatus();
+    const interval = setInterval(checkStatus, 15000);
+    return () => clearInterval(interval);
   }, [serverUrl]);
 
   // Backend mode: local or huggingface (cloud)
@@ -676,5 +689,6 @@ export function useChat() {
     clearMemories,
     activeModelName,
     proxyAvailable,
+    serverStatus,
   };
 }

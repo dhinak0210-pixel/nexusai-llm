@@ -41,6 +41,7 @@ export default function App() {
     clearMemories,
     activeModelName,
     proxyAvailable,
+    serverStatus,
   } = useChat();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -140,6 +141,7 @@ export default function App() {
           updateHfModel={updateHfModel}
           modelName={activeModelName}
           serverUrl={serverUrl}
+          serverStatus={serverStatus}
         />
 
         {/* Chat or Welcome */}

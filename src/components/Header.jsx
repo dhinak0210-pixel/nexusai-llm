@@ -19,6 +19,7 @@ export default function Header({
   updateBackendMode,
   hfModel,
   updateHfModel,
+  serverStatus = 'checking',
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [localModels, setLocalModels] = useState([
@@ -208,13 +209,35 @@ export default function Header({
         </div>
       </div>
 
-      <button
-        onClick={onToggleTheme}
-        className="p-2.5 rounded-xl hover:bg-surface-150 dark:hover:bg-surface-900/60 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-transparent hover:border-surface-200/50 dark:hover:border-surface-800/40 mr-1"
-        title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      >
-        {isDark ? <Sun className="w-4.5 h-4.5 text-amber-400" /> : <Moon className="w-4.5 h-4.5 text-surface-500" />}
-      </button>
+      <div className="flex items-center gap-3">
+        {/* System Status Indicator */}
+        <div 
+          className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-300 shadow-sm
+            ${serverStatus === 'online' 
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/10' 
+              : serverStatus === 'offline' 
+              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 dark:border-rose-500/10' 
+              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 dark:border-amber-500/10'}`}
+          title={serverStatus === 'online' ? 'All systems operational' : serverStatus === 'offline' ? 'Inference server offline or unreachable' : 'Pinging server...'}
+        >
+          <span className={`w-2 h-2 rounded-full transition-all duration-300
+            ${serverStatus === 'online' 
+              ? 'bg-emerald-500 animate-pulse' 
+              : serverStatus === 'offline' 
+              ? 'bg-rose-500' 
+              : 'bg-amber-500 animate-pulse'}`} 
+          />
+          {serverStatus === 'online' ? 'System Online' : serverStatus === 'offline' ? 'System Offline' : 'Checking System...'}
+        </div>
+
+        <button
+          onClick={onToggleTheme}
+          className="p-2.5 rounded-xl hover:bg-surface-150 dark:hover:bg-surface-900/60 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-transparent hover:border-surface-200/50 dark:hover:border-surface-800/40 mr-1"
+          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {isDark ? <Sun className="w-4.5 h-4.5 text-amber-400" /> : <Moon className="w-4.5 h-4.5 text-surface-500" />}
+        </button>
+      </div>
     </header>
   );
 }
