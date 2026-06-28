@@ -45,6 +45,9 @@ class DualLogger:
         self.terminal.flush()
         self.log.flush()
 
+    def __getattr__(self, name):
+        return getattr(self.terminal, name)
+
 # Redirect stdout and stderr to persistent log file in the backend directory
 log_dir = os.path.dirname(os.path.abspath(__file__))
 log_path = os.path.join(log_dir, "server.log")
