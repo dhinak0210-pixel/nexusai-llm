@@ -186,13 +186,23 @@ export default function SettingsModal({
                 <label className="text-xs font-bold uppercase tracking-wider text-surface-450 dark:text-surface-400 flex items-center gap-1.5">
                   <Key className="w-3.5 h-3.5 text-primary-500" /> Hugging Face API Key
                 </label>
-                <input
-                  type="password"
-                  value={keyInput}
-                  onChange={(e) => setKeyInput(e.target.value)}
-                  placeholder="hf_..."
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-surface-200 dark:border-surface-800 bg-transparent text-surface-800 dark:text-surface-250 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all font-mono"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={keyInput}
+                    onChange={(e) => setKeyInput(e.target.value)}
+                    placeholder="hf_..."
+                    className="flex-1 px-3 py-2 text-sm rounded-xl border border-surface-200 dark:border-surface-800 bg-transparent text-surface-800 dark:text-surface-250 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all font-mono"
+                  />
+                  <a
+                    href="https://huggingface.co/settings/tokens"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3.5 py-2 text-xs font-bold rounded-xl border border-surface-200 dark:border-surface-800 hover:border-primary-500/35 hover:text-primary-500 dark:hover:border-primary-500/30 dark:hover:text-primary-400 bg-surface-50/50 dark:bg-surface-950/20 text-surface-500 dark:text-surface-400 flex items-center gap-1 transition-all shrink-0 hover:bg-white dark:hover:bg-surface-900 cursor-pointer"
+                  >
+                    Get Token ↗
+                  </a>
+                </div>
                 <p className="text-[10px] text-surface-400 dark:text-surface-500 leading-normal">
                   By default, the server environment key is used. Input your personal Hugging Face Token here if you run out of monthly API limits.
                 </p>
