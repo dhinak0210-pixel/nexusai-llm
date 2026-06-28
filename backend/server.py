@@ -29,6 +29,27 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
 import requests as http_requests
+import sys
+
+class DualLogger:
+    def __init__(self, log_file, is_stderr=False):
+        self.terminal = sys.stderr if is_stderr else sys.stdout
+        self.log = open(log_file, "a", encoding="utf-8")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+        self.log.flush()
+
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
+# Redirect stdout and stderr to persistent log file in the backend directory
+log_dir = os.path.dirname(os.path.abspath(__file__))
+log_path = os.path.join(log_dir, "server.log")
+sys.stdout = DualLogger(log_path, is_stderr=False)
+sys.stderr = DualLogger(log_path, is_stderr=True)
 
 # Auto-inject Hugging Face token from local cache if not set in environment
 if not os.environ.get("HF_TOKEN"):
@@ -494,6 +515,7 @@ async def proxy_hf_chat(request: Request):
             ) as r:
                 if r.status_code != 200:
                     error_detail = r.text
+                    print(f"❌ Hugging Face API Proxy Error ({r.status_code}): {error_detail}")
                     yield f"data: {json.dumps({'choices': [{'delta': {'content': f'⚠️ Hugging Face API Proxy Error ({r.status_code}): {error_detail}'}}]})}\n\n"
                     yield "data: [DONE]\n\n"
                     return
@@ -501,6 +523,7 @@ async def proxy_hf_chat(request: Request):
                     if chunk:
                         yield chunk.decode('utf-8') + "\n"
         except Exception as e:
+            print(f"❌ Proxy Connection Error: {str(e)}")
             yield f"data: {json.dumps({'choices': [{'delta': {'content': f'⚠️ Proxy Connection Error: {str(e)}'}}]})}\n\n"
             yield "data: [DONE]\n\n"
 
